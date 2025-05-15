@@ -1,0 +1,91 @@
+import string
+from kea import *
+
+class Test(KeaTest):
+    
+
+    @initializer()
+    def set_up(self):
+        d(resourceId="net.gsantner.markor:id/next").click()
+        
+        d(resourceId="net.gsantner.markor:id/next").click()
+        
+        d(resourceId="net.gsantner.markor:id/next").click()
+        
+        d(resourceId="net.gsantner.markor:id/next").click()
+        
+        d(text="DONE").click()
+        
+        
+        if d(text="OK").exists():
+            d(text="OK").click()
+
+    @mainPath()
+    def modify_content_should_update_time_mainpath(self):
+        d(resourceId="net.gsantner.markor:id/fab_add_new_item").click()
+        d(resourceId="net.gsantner.markor:id/new_file_dialog__name").set_text("Hello2222")
+        d(text="OK").click()
+        d(resourceId="net.gsantner.markor:id/document__fragment__edit__highlighting_editor").click()
+        d.send_keys("Hello")
+        d(resourceId="net.gsantner.markor:id/action_save").click()
+        d.press("back")
+        d.press("back")
+        
+    #bug 552
+    @precondition(
+        lambda self: d(resourceId="net.gsantner.markor:id/fab_add_new_item").exists() and 
+        d(resourceId="net.gsantner.markor:id/opoc_filesystem_item__title").exists() and
+        d(resourceId="net.gsantner.markor:id/opoc_filesystem_item__title").count > 2 and 
+        d(text="Markor").exists() and not 
+        d(text="Settings").exists() and not 
+        d(text="Date").exists() and not 
+        d(resourceId="net.gsantner.markor:id/action_rename_selected_item").exists()
+        )
+    @rule()
+    def modify_content_should_update_time(self):
+        file_count = d(resourceId="net.gsantner.markor:id/opoc_filesystem_item__title").count
+        print("file count: "+str(file_count))
+        if file_count == 0:
+            print("no file ")
+            return
+        file_index = random.randint(0, file_count - 1)
+        selected_file = d(resourceId="net.gsantner.markor:id/opoc_filesystem_item__title")[file_index]
+        file_name = selected_file.info['text']
+        
+        if "." not in file_name or ".." in file_name:
+            print("not a file")
+            return
+        print("file name: "+str(file_name))
+        selected_file.click()
+        
+        new_content = st.text(alphabet=string.ascii_lowercase,min_size=6, max_size=10).example()
+        print("new content: "+str(new_content))
+        d(resourceId="net.gsantner.markor:id/document__fragment__edit__highlighting_editor").set_text(new_content)
+        
+        d.press("back")
+        
+        if not d(text="Markor").exists():
+            d.press("back")
+        
+        
+        hour_minite = str(d(resourceId="com.android.systemui:id/clock").get_text())
+        print("hour minite: "+str(hour_minite))
+        file_time = d(text=file_name).sibling(resourceId="net.gsantner.markor:id/opoc_filesystem_item__description").info['text']
+        print("file time: "+str(file_time))
+        file_hour_minite = str(file_time.split(" ")[1])
+        print("file hour minite: "+str(file_hour_minite))
+        assert file_hour_minite == hour_minite
+
+
+
+if __name__ == "__main__":
+    t = Test()
+    
+    setting = Setting(
+        apk_path="./apk/markor/2.11.1.apk",
+        device_serial="emulator-5554",
+        output_dir="../output/markor/552/guided_new",
+        policy_name="guided"
+    )
+    start_kea(t,setting)
+    
